@@ -18,17 +18,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <!-- Many properties are defined in this POM.
+        https://maven.repository.redhat.com/ga/org/jboss/jboss-parent/35/jboss-parent-35.pom -->
     <parent>
-        <groupId>org.jboss.eap.quickstarts</groupId>
-        <artifactId>quickstart-parent</artifactId>
-        <!--
-        Maintain separation between the artifact id and the version to help prevent
-        merge conflicts between commits changing the GA and those changing the V.
-        -->
-        <version>7.3.0.GA</version>
-        <relativePath>../pom.xml</relativePath>
+        <groupId>org.jboss</groupId>
+        <artifactId>jboss-parent</artifactId>
+        <version>35</version>
     </parent>
+
+    <groupId>org.jboss.eap.quickstarts</groupId>
     <artifactId>kitchensink</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>Quickstart: kitchensink</name>
     <description>A starter Jakarta EE web application project for use in JBoss EAP</description>
@@ -40,6 +41,80 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <properties>
+        <version.wildfly.maven.plugin>2.0.2.Final</version.wildfly.maven.plugin>
+        <version.server.bom>7.3.7.GA</version.server.bom>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- importing the jakartaee8-with-tools BOM adds specs and other useful artifacts as managed dependencies -->
+            <dependency>
+                <groupId>org.jboss.bom</groupId>
+                <artifactId>jboss-eap-jakartaee8-with-tools</artifactId>
+                <version>${version.server.bom}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </snapshots>
+            <id>jboss-public-repository-group</id>
+            <name>JBoss Public Repository Group</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+            <layout>default</layout>
+        </repository>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </snapshots>
+            <id>jboss-enterprise-maven-repository</id>
+            <name>JBoss Enterprise Maven Repository</name>
+            <url>https://maven.repository.redhat.com/ga/</url>
+            <layout>default</layout>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>jboss-public-repository-group</id>
+            <name>JBoss Public Repository Group</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+        </pluginRepository>
+        <pluginRepository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>jboss-enterprise-maven-repository</id>
+            <name>JBoss Enterprise Maven Repository</name>
+            <url>https://maven.repository.redhat.com/ga/</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencies>
 
@@ -166,5 +241,119 @@
     <build>
         <!-- Set the name of the WAR, used as the context root when the app is deployed -->
         <finalName>${project.artifactId}</finalName>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.wildfly.plugins</groupId>
+                    <artifactId>wildfly-maven-plugin</artifactId>
+                    <version>${version.wildfly.maven.plugin}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-ejb-plugin</artifactId>
+                    <version>${version.ejb.plugin}</version>
+                    <configuration>
+                        <!-- Tell Maven we are using EJB -->
+                        <ejbVersion>3.2</ejbVersion>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- An optional Arquillian testing profile that executes tests in your JBoss EAP instance.
+                 This profile will start a new JBoss EAP instance, and execute the test, shutting it down when done.
+                 Run with: mvn clean verify -Parq-managed -->
+            <id>arq-managed</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.wildfly.arquillian</groupId>
+                    <artifactId>wildfly-arquillian-container-managed</artifactId>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>${version.failsafe.plugin}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!-- An optional Arquillian testing profile that executes tests in a remote JBoss EAP instance.
+                 Run with: mvn clean verify -Parq-remote -->
+            <id>arq-remote</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.wildfly.arquillian</groupId>
+                    <artifactId>wildfly-arquillian-container-remote</artifactId>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>${version.failsafe.plugin}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!-- When built in OpenShift the 'openshift' profile will be
+                used when invoking mvn. -->
+            <!-- Use this profile for any OpenShift specific customization
+                your app will ne    ed. -->
+            <!-- By default that is to put the resulting archive into the
+                'deployments' folder. -->
+            <!-- http://maven.apache.org/guides/mini/guide-building-for-different-environments.html -->
+            <id>openshift</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <version>${version.war.plugin}</version>
+                        <configuration>
+                            <warName>ROOT</warName>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
