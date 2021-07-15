@@ -1,0 +1,138 @@
+name: Build and Scan
+
+on:
+  workflow_dispatch:
+#  push:
+#    branches:
+#    - main
+
+jobs:
+  oc-command-tasks:
+    name: Build on OpenShift
+    runs-on: ubuntu-20.04
+    environment: testenv
+    env:
+      # REST API URL: `oc whoami --show-server`
+      OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+      # Token, not password: `oc whoami --show-token`
+      OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+      # Target project name
+      OPENSHIFT_NAMESPACE: ${{ secrets.OPENSHIFT_NAMESPACE }}
+      # Application name, default to the git repository name
+      APP_NAME: ''
+    steps:
+
+    - name: Determine app name
+      if: env.APP_NAME == ''
+      run: |
+        echo "APP_NAME=$(basename $PWD)" | tee -a $GITHUB_ENV
+
+    - name: Log in to OpenShift
+      run: |
+        oc login \
+          --token "${{ env.OPENSHIFT_TOKEN }}" \
+          --insecure-skip-tls-verify \
+          ${{ env.OPENSHIFT_SERVER }}
+
+    - name: Create Project if not exists
+      run: |
+        if ! oc project ${{ env.OPENSHIFT_NAMESPACE }} ; then
+          oc new-project ${{ env.OPENSHIFT_NAMESPACE }}
+        fi
+
+    - name: Create EAP ImageStream if not exists
+      run: |
+        if ! oc get is jboss-eap73-openjdk11-openshift ; then
+          oc replace --force -f \
+            https://raw.githubusercontent.com/jboss-container-images/jboss-eap-7-openshift-image/7.3.x/templates/eap73-openjdk11-image-stream.json
+        fi
+
+    - name: Create EAP Template if not exists
+      run: |
+        if ! oc get template eap73-openjdk11-basic-s2i ; then
+          oc replace --force -f \
+            https://raw.githubusercontent.com/jboss-container-images/jboss-eap-7-openshift-image/7.3.x/templates/eap73-openjdk11-basic-s2i.json
+        fi
+
+    - name: Create BuildConfig and others if not exists
+      run: |
+        if ! oc get bc ${{ env.APP_NAME }} ; then
+          oc new-app \
+            --name=${{ env.APP_NAME }} \
+            -p APPLICATION_NAME=${{ env.APP_NAME }} \
+            -p IMAGE_STREAM_NAMESPACE=$(oc project -q) \
+            --template=eap73-openjdk11-basic-s2i \
+            -p SOURCE_REPOSITORY_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git \
+            -p SOURCE_REPOSITORY_REF=main \
+            -p CONTEXT_DIR="" \
+            -p MEMORY_LIMIT=512Mi \
+            -e ENABLE_ACCESS_LOG=true \
+            -e DISABLE_EMBEDDED_JMS_BROKER=true
+          # Allow long startup time for EAP.
+          oc set probe dc ${{ env.APP_NAME }} --startup --open-tcp=8080 --initial-delay-seconds=30 --failure-threshold=27
+          # Manually starts the runtime image build.
+          oc set triggers bc ${{ env.APP_NAME }} --from-image=${{ env.APP_NAME }}-build-artifacts:latest --remove
+          # Cancel the first build because new-app command can't wait it.
+          oc cancel-build ${{ env.APP_NAME }}-build-artifacts-1
+        fi
+
+    - name: Start S2I Maven build
+      run: |
+        oc start-build ${{ env.APP_NAME }}-build-artifacts --follow --wait
+
+    - name: Start runtime image build
+      run: |
+        oc start-build ${{ env.APP_NAME }} --follow --wait
+
+    - name: Show all resoureces
+      run: |
+        oc get all
+
+    - name: Show the route URL
+      run: |
+        echo "https://$( oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}' )/"
+
+    - name: Show the image name
+      run: |
+        echo "$(oc registry info)/$(oc project -q)/${APP_NAME}:latest"
+
+  trivy-scan:
+    name: Scan by Trivy
+    needs:
+    - oc-command-tasks
+    runs-on: ubuntu-20.04
+    environment: testenv
+    env:
+      # REST API URL: `oc registry info`
+      REGISTRY_SERVER: ${{ secrets.OPENSHIFT_REGISTRY }}
+      # Username
+      REGISTRY_USERNAME: ${{ secrets.OPENSHIFT_USERNAME }}
+      # Password (or token in case of OpenShift registry)
+      REGISTRY_PASSWORD: ${{ secrets.OPENSHIFT_TOKEN }}
+      # Repository owner
+      REPOSITORY_OWNER: ${{ secrets.OPENSHIFT_NAMESPACE }}
+      # Repository name, default to the git repository name
+      REPOSITORY_NAME: ''
+    steps:
+
+    - name: Determine app name
+      if: env.REPOSITORY_NAME == ''
+      run: |
+        echo "REPOSITORY_NAME=$(basename $PWD)" | tee -a $GITHUB_ENV
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.REGISTRY_SERVER }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_NAME }}:latest'
+        format: 'template'
+        template: '@/contrib/sarif.tpl'
+        output: 'trivy-results.sarif'
+        timeout: 5m
+      env:
+        TRIVY_USERNAME: ${{ env.REGISTRY_USERNAME }}
+        TRIVY_PASSWORD: ${{ env.REGISTRY_PASSWORD }}
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v1
+      with:
+        sarif_file: 'trivy-results.sarif'
