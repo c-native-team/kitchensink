@@ -54,6 +54,17 @@ jobs:
             https://raw.githubusercontent.com/jboss-container-images/jboss-eap-7-openshift-image/7.3.x/templates/eap73-openjdk11-basic-s2i.json
         fi
 
+    - name: Create PostgreSQL database if not exists
+      run: |
+        if ! oc get dc postgresql ; then
+          oc new-app \
+            postgresql-ephemeral \
+            -p POSTGRESQL_USER=pguser \
+            -p POSTGRESQL_PASSWORD=pguser \
+            -p POSTGRESQL_DATABASE=kitchensink \
+            -p POSTGRESQL_VERSION=12-el8
+        fi
+
     - name: Create BuildConfig and others if not exists
       run: |
         if ! oc get bc ${{ env.APP_NAME }} ; then
@@ -66,6 +77,16 @@ jobs:
             -p SOURCE_REPOSITORY_REF=main \
             -p CONTEXT_DIR="" \
             -p MEMORY_LIMIT=512Mi \
+            -e DB_SERVICE_PREFIX_MAPPING=kitchensink-ds=DB \
+            -e DB_JNDI=java:jboss/datasources/KitchensinkQuickstartDS \
+            -e DB_DATABASE=kitchensink \
+            -e DB_USERNAME=pguser \
+            -e DB_PASSWORD=pguser \
+            -e DB_DRIVER=postgresql \
+            -e DB_NONXA=true \
+            -e DB_URL='jdbc:postgresql://postgresql:5432/kitchensink' \
+            -e DB_MIN_POOL_SIZE=10 \
+            -e DB_MAX_POOL_SIZE=30 \
             -e ENABLE_ACCESS_LOG=true \
             -e DISABLE_EMBEDDED_JMS_BROKER=true
           # Allow long startup time for EAP.
