@@ -20,11 +20,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!-- Many properties are defined in this POM.
-        https://maven.repository.redhat.com/ga/org/jboss/jboss-parent/35/jboss-parent-35.pom -->
+        https://maven.repository.redhat.com/ga/org/jboss/jboss-parent/37.0.0.redhat-00001/jboss-parent-37.0.0.redhat-00001.pom -->
     <parent>
         <groupId>org.jboss</groupId>
         <artifactId>jboss-parent</artifactId>
-        <version>35</version>
+        <version>37.0.0.redhat-00001</version>
     </parent>
 
     <groupId>org.jboss.eap.quickstarts</groupId>
@@ -44,7 +44,7 @@
 
     <properties>
         <version.wildfly.maven.plugin>2.0.2.Final</version.wildfly.maven.plugin>
-        <version.server.bom>7.3.7.GA</version.server.bom>
+        <version.server.bom>7.3.8.GA</version.server.bom>
     </properties>
 
     <dependencyManagement>
@@ -223,7 +223,6 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-ejb-plugin</artifactId>
-                    <version>${version.ejb.plugin}</version>
                     <configuration>
                         <!-- Tell Maven we are using EJB -->
                         <ejbVersion>3.2</ejbVersion>
@@ -248,7 +247,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>${version.failsafe.plugin}</version>
                         <executions>
                             <execution>
                                 <goals>
@@ -276,7 +274,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>${version.failsafe.plugin}</version>
                         <executions>
                             <execution>
                                 <goals>
@@ -297,7 +294,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-war-plugin</artifactId>
-                        <version>${version.war.plugin}</version>
                         <configuration>
                             <warName>ROOT</warName>
                         </configuration>
