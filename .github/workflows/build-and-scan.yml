@@ -20,12 +20,19 @@ jobs:
       OPENSHIFT_NAMESPACE: ${{ secrets.OPENSHIFT_NAMESPACE }}
       # Application name, default to the git repository name
       APP_NAME: ''
+      # Image tag name, dafault to the first 7 digits of commit ID
+      TAG: ''
     steps:
 
     - name: Determine app name
       if: env.APP_NAME == ''
       run: |
         echo "APP_NAME=$(basename $PWD)" | tee -a $GITHUB_ENV
+
+    - name: Determine tag
+      if: env.TAG == ''
+      run: |
+        echo "TAG=${GITHUB_SHA::7}" | tee -a $GITHUB_ENV
 
     - name: Log in to OpenShift
       run: |
@@ -105,6 +112,14 @@ jobs:
       run: |
         oc start-build ${{ env.APP_NAME }} --follow --wait
 
+    - name: Tag the image
+      run: |
+        oc tag ${{ env.APP_NAME }}:latest ${{ env.APP_NAME }}:${{ env.TAG }}
+
+    - name: Describe the image
+      run: |
+        oc describe istag "${APP_NAME}:${TAG}"
+
     - name: Show all resoureces
       run: |
         oc get all
@@ -112,10 +127,6 @@ jobs:
     - name: Show the route URL
       run: |
         echo "https://$( oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}' )/"
-
-    - name: Show the image name
-      run: |
-        echo "$(oc registry info)/$(oc project -q)/${APP_NAME}:latest"
 
   trivy-scan:
     name: Scan by Trivy
