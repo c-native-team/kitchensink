@@ -116,7 +116,11 @@ jobs:
       run: |
         oc tag ${{ env.APP_NAME }}:latest ${{ env.APP_NAME }}:${{ env.TAG }}
 
-    - name: Describe the image
+    - name: Describe the ImageStream
+      run: |
+        oc describe is "${APP_NAME}"
+
+    - name: Describe the ImageStreamTag
       run: |
         oc describe istag "${APP_NAME}:${TAG}"
 
