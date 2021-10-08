@@ -132,46 +132,46 @@ jobs:
       run: |
         echo "https://$( oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}' )/"
 
-#  trivy-scan:
-#    name: Scan by Trivy
-#    needs:
-#    - oc-command-tasks
-#    runs-on: ubuntu-20.04
-#    environment: testenv
-#    env:
-#      # REST API URL: `oc registry info`
-#      REGISTRY_SERVER: ${{ secrets.OPENSHIFT_REGISTRY }}
-#      # Username
-#      REGISTRY_USERNAME: ${{ secrets.OPENSHIFT_USERNAME }}
-#      # Password (or token in case of OpenShift registry)
-#      REGISTRY_PASSWORD: ${{ secrets.OPENSHIFT_TOKEN }}
-#      # Repository owner
-#      REPOSITORY_OWNER: ${{ secrets.OPENSHIFT_NAMESPACE }}
-#      # Repository name, default to the git repository name
-#      REPOSITORY_NAME: ''
-#    steps:
-#
-#    - name: Determine app name
-#      if: env.REPOSITORY_NAME == ''
-#      run: |
-#        echo "REPOSITORY_NAME=$(basename $PWD)" | tee -a $GITHUB_ENV
-#
-#    - name: Run Trivy vulnerability scanner
-#      uses: aquasecurity/trivy-action@master
-#      with:
-#        image-ref: '${{ env.REGISTRY_SERVER }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_NAME }}:latest'
-#        format: 'template'
-#        template: '@/contrib/sarif.tpl'
-#        output: 'trivy-results.sarif'
-#        timeout: 10m
-#      env:
-#        TRIVY_USERNAME: ${{ env.REGISTRY_USERNAME }}
-#        TRIVY_PASSWORD: ${{ env.REGISTRY_PASSWORD }}
-#
-#    - name: Upload Trivy scan results to GitHub Security tab
-#      uses: github/codeql-action/upload-sarif@v1
-#      with:
-#        sarif_file: 'trivy-results.sarif'
+  trivy-scan:
+    name: Scan by Trivy
+    needs:
+    - oc-command-tasks
+    runs-on: ubuntu-20.04
+    environment: testenv
+    env:
+      # REST API URL: `oc registry info`
+      REGISTRY_SERVER: ${{ secrets.OPENSHIFT_REGISTRY }}
+      # Username
+      REGISTRY_USERNAME: ${{ secrets.OPENSHIFT_USERNAME }}
+      # Password (or token in case of OpenShift registry)
+      REGISTRY_PASSWORD: ${{ secrets.OPENSHIFT_TOKEN }}
+      # Repository owner
+      REPOSITORY_OWNER: ${{ secrets.OPENSHIFT_NAMESPACE }}
+      # Repository name, default to the git repository name
+      REPOSITORY_NAME: ''
+    steps:
+
+    - name: Determine app name
+      if: env.REPOSITORY_NAME == ''
+      run: |
+        echo "REPOSITORY_NAME=$(basename $PWD)" | tee -a $GITHUB_ENV
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.REGISTRY_SERVER }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_NAME }}:latest'
+        format: 'template'
+        template: '@/contrib/sarif.tpl'
+        output: 'trivy-results.sarif'
+        timeout: 10m
+      env:
+        TRIVY_USERNAME: ${{ env.REGISTRY_USERNAME }}
+        TRIVY_PASSWORD: ${{ env.REGISTRY_PASSWORD }}
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v1
+      with:
+        sarif_file: 'trivy-results.sarif'
 
 #  push-new-config:
 #    name: Push to Config Repo
