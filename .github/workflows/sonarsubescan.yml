@@ -4,7 +4,7 @@ on:
 #    branches:
 #    - main
 
-name: Main Workflow
+name: SonarQube Scan
 jobs:
   sonarqube:
     runs-on: ubuntu-latest
